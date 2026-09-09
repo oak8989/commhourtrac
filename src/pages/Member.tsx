@@ -79,39 +79,45 @@ function HomeView({ user }: { user: any }) {
   const progress = nextMedal ? (user.totalHours / nextMedal.hoursRequired) * 100 : 100;
 
   const handleCheckIn = () => {
-    const liveEvent = state.events.find(e => getEventStatus(e) === 'live');
-    if (!liveEvent) {
-      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'No live event to check in to', 'warning')] }));
-      return;
-    }
-    const existing = state.attendance.find(a => a.userId === user.id && a.eventId === liveEvent.id);
-    if (existing) {
-      setState(prev => ({
-        ...prev,
-        attendance: prev.attendance.map(a => a.id === existing.id ? { ...a, checkIn: new Date().toISOString(), status: 'checked-in' as const } : a),
-        toasts: [...prev.toasts, addToast(prev, 'Checked in!', 'success')],
-      }));
-    } else {
-      setState(prev => ({
-        ...prev,
-        attendance: [...prev.attendance, { id: uuidv4(), userId: user.id, eventId: liveEvent.id, checkIn: new Date().toISOString(), checkOut: null, isWalkIn: false, hours: 0, status: 'checked-in' }],
-        activityLog: [addActivity(prev, { type: 'check-in', userId: user.id, eventId: liveEvent.id, message: `${user.name} checked in to ${liveEvent.title}` }), ...prev.activityLog],
-        toasts: [...prev.toasts, addToast(prev, 'Checked in!', 'success')],
-      }));
-    }
+    setState(prev => {
+      const liveEvent = prev.events.find(e => getEventStatus(e) === 'live');
+      if (!liveEvent) {
+        return { ...prev, toasts: [...prev.toasts, addToast(prev, 'No live event to check in to', 'warning')] };
+      }
+      const existing = prev.attendance.find(a => a.userId === user.id && a.eventId === liveEvent.id);
+      const currentUser = prev.currentUser || user;
+      if (existing) {
+        return {
+          ...prev,
+          attendance: prev.attendance.map(a => a.id === existing.id ? { ...a, checkIn: new Date().toISOString(), status: 'checked-in' as const } : a),
+          toasts: [...prev.toasts, addToast(prev, 'Checked in!', 'success')],
+        };
+      } else {
+        return {
+          ...prev,
+          attendance: [...prev.attendance, { id: uuidv4(), userId: user.id, eventId: liveEvent.id, checkIn: new Date().toISOString(), checkOut: null, isWalkIn: false, hours: 0, status: 'checked-in' as const }],
+          activityLog: [{ id: uuidv4(), type: 'check-in' as const, userId: user.id, eventId: liveEvent.id, message: `${currentUser.name} checked in to ${liveEvent.title}`, timestamp: new Date().toISOString() }, ...prev.activityLog],
+          toasts: [...prev.toasts, addToast(prev, 'Checked in!', 'success')],
+        };
+      }
+    });
   };
 
   const handleCheckOut = () => {
-    if (!activeCheckin) return;
-    const hours = calculateHours(activeCheckin.checkIn, new Date().toISOString());
-    setState(prev => ({
-      ...prev,
-      attendance: prev.attendance.map(a => a.id === activeCheckin.id ? { ...a, checkOut: new Date().toISOString(), hours, status: 'completed' as const } : a),
-      users: prev.users.map(u => u.id === user.id ? { ...u, totalHours: u.totalHours + hours } : u),
-      currentUser: prev.currentUser ? { ...prev.currentUser, totalHours: prev.currentUser.totalHours + hours } : null,
-      activityLog: [addActivity(prev, { type: 'check-out', userId: user.id, message: `${user.name} checked out (${hours}h)` }), ...prev.activityLog],
-      toasts: [...prev.toasts, addToast(prev, `Checked out! ${hours} hours logged`, 'success')],
-    }));
+    setState(prev => {
+      const currentActive = prev.attendance.find(a => a.userId === user.id && a.checkIn && !a.checkOut);
+      if (!currentActive) return prev;
+      const hours = calculateHours(currentActive.checkIn, new Date().toISOString());
+      const currentUser = prev.currentUser || user;
+      return {
+        ...prev,
+        attendance: prev.attendance.map(a => a.id === currentActive.id ? { ...a, checkOut: new Date().toISOString(), hours, status: 'completed' as const } : a),
+        users: prev.users.map(u => u.id === user.id ? { ...u, totalHours: u.totalHours + hours } : u),
+        currentUser: prev.currentUser ? { ...prev.currentUser, totalHours: prev.currentUser.totalHours + hours } : null,
+        activityLog: [{ id: uuidv4(), type: 'check-out' as const, userId: user.id, message: `${currentUser.name} checked out (${hours}h)`, timestamp: new Date().toISOString() }, ...prev.activityLog],
+        toasts: [...prev.toasts, addToast(prev, `Checked out! ${hours} hours logged`, 'success')],
+      };
+    });
   };
 
   return (
@@ -218,6 +224,13 @@ function EventsView({ user }: { user: any }) {
   const { state, setState } = useStore();
   const [filter, setFilter] = useState<'upcoming' | 'live' | 'past'>('upcoming');
   const [showQR, setShowQR] = useState(false);
+  const [, setTick] = useState(0);
+
+  // Force re-render every 30s to update live event status
+  React.useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const visibleEvents = useMemo(() => {
     return state.events.filter(e => {
@@ -230,38 +243,45 @@ function EventsView({ user }: { user: any }) {
   const isRegistered = (eventId: string) => state.registrations.some(r => r.eventId === eventId && r.userId === user.id);
 
   const handleRegister = (event: Event) => {
-    if (event.requireWaiver && !user.waiverSigned) {
-      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Please sign the waiver first', 'warning')] }));
-      return;
-    }
-    if (isRegistered(event.id)) {
-      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Already registered', 'info')] }));
-      return;
-    }
-    const regs = getEventRegistrations(state, event.id);
-    if (regs.length >= event.capacity) {
-      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Event is full', 'error')] }));
-      return;
-    }
+    setState(prev => {
+      const currentUser = prev.users.find(u => u.id === user.id) || user;
+      if (event.requireWaiver && !currentUser.waiverSigned) {
+        return { ...prev, toasts: [...prev.toasts, addToast(prev, 'Please sign the waiver first', 'warning')] };
+      }
+      const alreadyRegistered = prev.registrations.some(r => r.eventId === event.id && r.userId === user.id);
+      if (alreadyRegistered) {
+        return { ...prev, toasts: [...prev.toasts, addToast(prev, 'Already registered', 'info')] };
+      }
+      const regs = prev.registrations.filter(r => r.eventId === event.id);
+      if (regs.length >= event.capacity) {
+        return { ...prev, toasts: [...prev.toasts, addToast(prev, 'Event is full', 'error')] };
+      }
 
-    let reg = { id: uuidv4(), userId: user.id, eventId: event.id, registeredAt: new Date().toISOString(), paid: false, refunded: false, receiptId: undefined as string | undefined };
-    let payment = null;
-    if (event.fee > 0 && state.settings.paymentsEnabled) {
-      payment = { id: uuidv4(), userId: user.id, eventId: event.id, amount: event.fee, method: 'card' as const, status: 'paid' as const, receiptId: 'RCP-' + Math.random().toString(36).substr(2, 8).toUpperCase(), createdAt: new Date().toISOString() };
-      reg = { ...reg, paid: true, receiptId: payment.receiptId };
-    }
+      const receiptId = 'RCP-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      const hasPayment = event.fee > 0 && prev.settings.paymentsEnabled;
+      const reg = {
+        id: uuidv4(), userId: user.id, eventId: event.id,
+        registeredAt: new Date().toISOString(), paid: hasPayment,
+        refunded: false, receiptId: hasPayment ? receiptId : undefined,
+      };
+      const payment = hasPayment ? {
+        id: uuidv4(), userId: user.id, eventId: event.id,
+        amount: event.fee, method: 'card' as const, status: 'paid' as const,
+        receiptId, createdAt: new Date().toISOString(),
+      } : null;
 
-    const activity = addActivity(state, { type: 'registration', userId: user.id, eventId: event.id, message: `${user.name} registered for ${event.title}` });
-    const emailMsg = { id: uuidv4(), to: user.email, subject: `Registration confirmed: ${event.title}`, status: 'delivered' as const, createdAt: new Date().toISOString() };
+      const activity = { id: uuidv4(), type: 'registration' as const, userId: user.id, eventId: event.id, message: `${currentUser.name} registered for ${event.title}`, timestamp: new Date().toISOString() };
+      const emailMsg = { id: uuidv4(), to: currentUser.email, subject: `Registration confirmed: ${event.title}`, status: 'delivered' as const, createdAt: new Date().toISOString() };
 
-    setState(prev => ({
-      ...prev,
-      registrations: [...prev.registrations, reg],
-      payments: payment ? [...prev.payments, payment] : prev.payments,
-      activityLog: [activity, ...prev.activityLog],
-      emails: [...prev.emails, emailMsg],
-      toasts: [...prev.toasts, addToast(prev, payment ? `Registered! Receipt: ${payment.receiptId}` : 'Registered!', 'success')],
-    }));
+      return {
+        ...prev,
+        registrations: [...prev.registrations, reg],
+        payments: payment ? [...prev.payments, payment] : prev.payments,
+        activityLog: [activity, ...prev.activityLog],
+        emails: [...prev.emails, emailMsg],
+        toasts: [...prev.toasts, addToast(prev, payment ? `Registered! Receipt: ${receiptId}` : 'Registered!', 'success')],
+      };
+    });
   };
 
   return (
@@ -333,17 +353,20 @@ function QRScanner({ onClose }: { onClose: () => void }) {
     setScanning(false);
     setTimeout(() => {
       setSuccess(true);
-      const liveEvent = state.events.find(e => getEventStatus(e) === 'live');
-      if (liveEvent) {
-        const existing = state.attendance.find(a => a.userId === currentUser.id && a.eventId === liveEvent.id);
-        if (!existing) {
-          setState(prev => ({
-            ...prev,
-            attendance: [...prev.attendance, { id: uuidv4(), userId: currentUser.id, eventId: liveEvent.id, checkIn: new Date().toISOString(), checkOut: null, isWalkIn: true, hours: 0, status: 'checked-in' }],
-            toasts: [...prev.toasts, addToast(prev, `Walk-in check-in to ${liveEvent.title}!`, 'success')],
-          }));
-        }
-      }
+      // Use functional setState to avoid stale closure
+      setState(prev => {
+        const liveEvent = prev.events.find(e => getEventStatus(e) === 'live');
+        if (!liveEvent) return prev;
+        const userId = prev.currentUser?.id;
+        if (!userId) return prev;
+        const existing = prev.attendance.find(a => a.userId === userId && a.eventId === liveEvent.id);
+        if (existing) return prev;
+        return {
+          ...prev,
+          attendance: [...prev.attendance, { id: uuidv4(), userId, eventId: liveEvent.id, checkIn: new Date().toISOString(), checkOut: null, isWalkIn: true, hours: 0, status: 'checked-in' as const }],
+          toasts: [...prev.toasts, addToast(prev, `Walk-in check-in to ${liveEvent.title}!`, 'success')],
+        };
+      });
     }, 1500);
   };
 

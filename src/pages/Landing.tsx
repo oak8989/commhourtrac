@@ -8,20 +8,18 @@ import { CountUp, LiveClock, PulsingDot, Badge, CapacityBar } from '../component
 export default function Landing({ onNavigate }: { onNavigate: (page: string) => void }) {
   const { state } = useStore();
   const { settings } = state;
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [tickerIndex, setTickerIndex] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
+    if (state.activityLog.length === 0) return;
     const timer = setInterval(() => {
-      setTickerIndex(i => (i + 1) % Math.max(state.activityLog.length, 1));
+      setTickerIndex(i => (i + 1) % state.activityLog.length);
     }, 3000);
     return () => clearInterval(timer);
   }, [state.activityLog.length]);
+
+  // Ensure tickerIndex is within bounds when activityLog changes
+  const safeTickerIndex = state.activityLog.length > 0 ? tickerIndex % state.activityLog.length : 0;
 
   const publicEvents = state.events
     .filter(e => e.isPublic && getEventStatus(e) !== 'past')
@@ -98,19 +96,19 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
               <div className="h-24 flex items-center justify-center overflow-hidden">
                 {state.activityLog.length > 0 && (
                   <motion.p
-                    key={tickerIndex}
+                    key={safeTickerIndex}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     className="text-center text-gray-700"
                   >
-                    {state.activityLog[tickerIndex]?.message}
+                    {state.activityLog[safeTickerIndex]?.message}
                   </motion.p>
                 )}
               </div>
               <div className="flex justify-center gap-1 mt-2">
                 {state.activityLog.slice(0, 5).map((_, i) => (
-                  <div key={i} className={`w-2 h-2 rounded-full ${i === tickerIndex % 5 ? 'bg-green-600' : 'bg-gray-200'}`} />
+                  <div key={i} className={`w-2 h-2 rounded-full ${i === safeTickerIndex % 5 ? 'bg-green-600' : 'bg-gray-200'}`} />
                 ))}
               </div>
             </motion.div>

@@ -178,6 +178,13 @@ function EventsView() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [viewingAttendance, setViewingAttendance] = useState<Event | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+
+  // Force re-render every 30s to update live event status
+  React.useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const filteredEvents = useMemo(() => {
     let events = [...state.events];
@@ -401,7 +408,8 @@ function AttendanceLedger({ event, onClose, onExport }: { event: Event; onClose:
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const sorted = useMemo(() => {
-    return [...attendees].sort((a, b) => {
+    const eventAttendees = state.attendance.filter(a => a.eventId === event.id);
+    return [...eventAttendees].sort((a, b) => {
       const userA = state.users.find(u => u.id === a.userId);
       const userB = state.users.find(u => u.id === b.userId);
       let cmp = 0;
@@ -410,10 +418,11 @@ function AttendanceLedger({ event, onClose, onExport }: { event: Event; onClose:
       else if (sortField === 'hours') cmp = a.hours - b.hours;
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [attendees, state.users, sortField, sortDir]);
+  }, [state.attendance, state.users, event.id, sortField, sortDir]);
 
   const handleCheckIn = (userId: string) => {
-    const existing = attendees.find(a => a.userId === userId);
+    const existing = state.attendance.find(a => a.userId === userId && a.eventId === event.id);
+    const isRegistered = state.registrations.some(r => r.userId === userId && r.eventId === event.id);
     if (existing) {
       setState(prev => ({
         ...prev,
@@ -423,20 +432,21 @@ function AttendanceLedger({ event, onClose, onExport }: { event: Event; onClose:
     } else {
       setState(prev => ({
         ...prev,
-        attendance: [...prev.attendance, { id: uuidv4(), userId, eventId: event.id, checkIn: new Date().toISOString(), checkOut: null, isWalkIn: true, hours: 0, status: 'checked-in' }],
-        toasts: [...prev.toasts, addToast(prev, 'Walk-in recorded', 'success')],
+        attendance: [...prev.attendance, { id: uuidv4(), userId, eventId: event.id, checkIn: new Date().toISOString(), checkOut: null, isWalkIn: !isRegistered, hours: 0, status: 'checked-in' }],
+        toasts: [...prev.toasts, addToast(prev, isRegistered ? 'Checked in' : 'Walk-in recorded', 'success')],
       }));
     }
   };
 
   const handleCheckOut = (attendanceId: string) => {
-    const att = attendees.find(a => a.id === attendanceId);
+    const att = state.attendance.find(a => a.id === attendanceId);
     if (!att) return;
     const hours = calculateHours(att.checkIn, new Date().toISOString());
     setState(prev => ({
       ...prev,
       attendance: prev.attendance.map(a => a.id === attendanceId ? { ...a, checkOut: new Date().toISOString(), hours, status: 'completed' as const } : a),
       users: prev.users.map(u => u.id === att.userId ? { ...u, totalHours: u.totalHours + hours } : u),
+      currentUser: prev.currentUser?.id === att.userId ? { ...prev.currentUser, totalHours: prev.currentUser.totalHours + hours } : prev.currentUser,
       toasts: [...prev.toasts, addToast(prev, `Checked out (${hours}h)`, 'success')],
     }));
   };
@@ -523,22 +533,25 @@ function MembersView() {
     return users;
   }, [state.users, search, statusFilter]);
 
-  const adminCount = state.users.filter(u => u.role === 'admin' && u.status === 'active').length;
-
   const handleDelete = (id: string) => {
-    const user = state.users.find(u => u.id === id);
-    if (user?.role === 'admin' && adminCount <= 1) {
-      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Cannot delete the last admin!', 'error')] }));
-      return;
-    }
-    setState(prev => ({
-      ...prev,
-      users: prev.users.filter(u => u.id !== id),
-      attendance: prev.attendance.filter(a => a.userId !== id),
-      registrations: prev.registrations.filter(r => r.userId !== id),
-      payments: prev.payments.filter(p => p.userId !== id),
-      toasts: [...prev.toasts, addToast(prev, 'Member deleted (cascade)', 'success')],
-    }));
+    setState(prev => {
+      const user = prev.users.find(u => u.id === id);
+      const currentAdminCount = prev.users.filter(u => u.role === 'admin' && u.status === 'active').length;
+      
+      if (user?.role === 'admin' && currentAdminCount <= 1) {
+        return { ...prev, toasts: [...prev.toasts, addToast(prev, 'Cannot delete the last admin!', 'error')] };
+      }
+      
+      return {
+        ...prev,
+        users: prev.users.filter(u => u.id !== id),
+        attendance: prev.attendance.filter(a => a.userId !== id),
+        registrations: prev.registrations.filter(r => r.userId !== id),
+        payments: prev.payments.filter(p => p.userId !== id),
+        currentUser: prev.currentUser?.id === id ? null : prev.currentUser,
+        toasts: [...prev.toasts, addToast(prev, 'Member deleted (cascade)', 'success')],
+      };
+    });
   };
 
   const exportMembersCSV = () => {

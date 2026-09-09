@@ -10,10 +10,10 @@ import MemberPortal from './pages/Member';
 type Page = 'landing' | 'login' | 'register' | 'reset' | 'first-run' | 'admin' | 'member';
 
 export default function App() {
-  const [state, setStateRaw] = useState<AppState>(loadState);
+  const [initialState] = useState<AppState>(() => loadState());
+  const [state, setStateRaw] = useState<AppState>(initialState);
   const [page, setPage] = useState<Page>(() => {
-    const s = loadState();
-    if (s.currentUser) return s.currentUser.role === 'admin' ? 'admin' : 'member';
+    if (initialState.currentUser) return initialState.currentUser.role === 'admin' ? 'admin' : 'member';
     return 'landing';
   });
 
