@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  volunteerhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: volunteerhub-app
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      
+      # SMTP Configuration
+      # Gmail
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-noreply@example.com}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-VolunteerHub}
+      
+      # Rate Limiting
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-50}
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/email/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Optional: MailHog for local email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: volunteerhub-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    profiles:
+      - testing
+    restart: unless-stopped
+
+networks:
+  default:
+    name: volunteerhub-network

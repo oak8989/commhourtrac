@@ -64,7 +64,7 @@ export const EmailTemplates = {
     text: `Payment Receipt\n\nReceipt ID: ${receiptId}\nAmount: $${amount.toFixed(2)}\nEvent: ${eventTitle}\nOrganization: ${orgName}`
   }),
 
-  passwordReset: (orgName: string, resetToken: string) => ({
+  passwordReset: (orgName: string, resetToken: string, resetUrl?: string) => ({
     subject: 'Password Reset Request',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

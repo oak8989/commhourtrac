@@ -6,6 +6,7 @@ import { Event } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, ProgressRing, CountUp } from '../components/UI';
 import { EmailTemplates, sendMedalEmail, mailer } from '../mailer';
+import { emailAPI } from '../emailAPI';
 
 type MemberView = 'home' | 'events' | 'hours' | 'profile';
 
@@ -125,20 +126,21 @@ function HomeView({ user }: { user: any }) {
       medalsEarned.forEach(medal => {
         newActivityLog = [{ id: uuidv4(), type: 'medal' as const, userId: user.id, message: `${currentUser.name} earned the ${medal.name} medal! ${medal.icon}`, timestamp: new Date().toISOString() }, ...newActivityLog];
         
-        // Send medal email
+        // Send medal email via real API
         const medalTemplate = EmailTemplates.medal(prev.settings.orgName, medal.name, medal.icon, newTotalHours);
         newEmails.push({ id: uuidv4(), to: currentUser.email, subject: medalTemplate.subject, status: 'queued' as const, createdAt: new Date().toISOString() });
         
-        mailer.configure({
+        // Send asynchronously
+        emailAPI.configure({
           host: prev.settings.smtpHost,
           port: prev.settings.smtpPort,
           user: prev.settings.smtpUser,
           pass: prev.settings.smtpPass,
           from: prev.settings.smtpFrom,
           fromName: prev.settings.orgName,
-          secure: prev.settings.smtpPort === 465,
+        }).then(() => {
+          emailAPI.send(currentUser.email, medalTemplate.subject, medalTemplate.html, medalTemplate.text, 'medal');
         });
-        mailer.queueEmail(currentUser.email, medalTemplate.subject, medalTemplate.html, medalTemplate.text, 'medal');
         
         newToasts = [...newToasts, addToast(prev, `🎉 Congratulations! You earned the ${medal.name} medal!`, 'success')];
       });
@@ -315,17 +317,17 @@ function EventsView({ user }: { user: any }) {
       const regTemplate = EmailTemplates.registration(prev.settings.orgName, event.title, eventDate, event.location);
       const emailMsg = { id: uuidv4(), to: currentUser.email, subject: regTemplate.subject, status: 'queued' as const, createdAt: new Date().toISOString() };
       
-      // Queue the email
-      mailer.configure({
+      // Send email via real API (async, don't await to avoid blocking UI)
+      emailAPI.configure({
         host: prev.settings.smtpHost,
         port: prev.settings.smtpPort,
         user: prev.settings.smtpUser,
         pass: prev.settings.smtpPass,
         from: prev.settings.smtpFrom,
         fromName: prev.settings.orgName,
-        secure: prev.settings.smtpPort === 465,
+      }).then(() => {
+        emailAPI.send(currentUser.email, regTemplate.subject, regTemplate.html, regTemplate.text, 'registration');
       });
-      mailer.queueEmail(currentUser.email, regTemplate.subject, regTemplate.html, regTemplate.text, 'registration');
 
       return {
         ...prev,

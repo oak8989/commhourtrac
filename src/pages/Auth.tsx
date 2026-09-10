@@ -4,6 +4,7 @@ import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-re
 import { useStore, addToast, addActivity, addEmail } from '../store';
 import { v4 as uuidv4 } from 'uuid';
 import { sendWelcomeEmail, sendPasswordResetEmail, EmailTemplates } from '../mailer';
+import { emailAPI } from '../emailAPI';
 
 export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' | 'reset' | 'first-run'; onNavigate: (page: string) => void }) {
   const { state, setState } = useStore();
@@ -40,9 +41,21 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
 
     const activity = addActivity(state, { type: 'member-added', userId: newUser.id, message: `${name} registered as a new volunteer` });
     
-    // Send welcome email using template
+    // Send welcome email using real API
     const welcomeTemplate = EmailTemplates.welcome(state.settings.orgName, name);
     const emailMsg = addEmail(state, email, welcomeTemplate.subject, welcomeTemplate.html, welcomeTemplate.text);
+    
+    // Send via real API asynchronously
+    emailAPI.configure({
+      host: state.settings.smtpHost,
+      port: state.settings.smtpPort,
+      user: state.settings.smtpUser,
+      pass: state.settings.smtpPass,
+      from: state.settings.smtpFrom,
+      fromName: state.settings.orgName,
+    }).then(() => {
+      emailAPI.send(email, welcomeTemplate.subject, welcomeTemplate.html, welcomeTemplate.text, 'welcome');
+    });
 
     setState(prev => ({
       ...prev,
@@ -61,10 +74,23 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
     const user = state.users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!user) { setError('Email not found'); return; }
     
-    // Generate reset token and send templated email
+    // Generate reset token and send templated email via real API
     const resetToken = Math.random().toString(36).substring(2, 15);
-    const resetTemplate = EmailTemplates.passwordReset(state.settings.orgName, resetToken);
+    const resetUrl = `${window.location.origin}/reset-password?token=${resetToken}`;
+    const resetTemplate = EmailTemplates.passwordReset(state.settings.orgName, resetToken, resetUrl);
     const emailMsg = addEmail(state, email, resetTemplate.subject, resetTemplate.html, resetTemplate.text);
+    
+    // Send via real API asynchronously
+    emailAPI.configure({
+      host: state.settings.smtpHost,
+      port: state.settings.smtpPort,
+      user: state.settings.smtpUser,
+      pass: state.settings.smtpPass,
+      from: state.settings.smtpFrom,
+      fromName: state.settings.orgName,
+    }).then(() => {
+      emailAPI.send(email, resetTemplate.subject, resetTemplate.html, resetTemplate.text, 'passwordReset');
+    });
     
     setState(prev => ({
       ...prev,

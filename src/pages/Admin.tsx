@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, CountUp, ProgressRing } from '../components/UI';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { mailer, sendTestEmail as sendTestEmailFn } from '../mailer';
+import { emailAPI } from '../emailAPI';
 
 type AdminView = 'dashboard' | 'events' | 'members' | 'impact' | 'settings' | 'deploy';
 
@@ -892,62 +893,113 @@ function SettingsView() {
     setState(prev => ({ ...prev, settings, toasts: [...prev.toasts, addToast(prev, 'Settings saved!', 'success')] }));
   };
 
-  // Email management functions
+  // Email management functions - using real API
   const checkRelayHealth = async () => {
     setCheckingHealth(true);
-    // Configure mailer with current settings
-    mailer.configure({
+    
+    // First configure the server with current settings
+    await emailAPI.configure({
       host: settings.smtpHost,
       port: settings.smtpPort,
       user: settings.smtpUser,
       pass: settings.smtpPass,
       from: settings.smtpFrom,
       fromName: settings.orgName,
-      secure: settings.smtpPort === 465,
     });
-    const health = await mailer.checkRelayHealth();
-    setRelayHealth(health);
+    
+    // Then verify the connection
+    const health = await emailAPI.verify();
+    // Map API status to UI status
+    const status = health.status === 'unconfigured' ? 'offline' : health.status;
+    setRelayHealth(status);
     setCheckingHealth(false);
   };
 
-  const updateQueueStatus = () => {
-    setQueueStatus(mailer.getQueueStatus());
+  const updateQueueStatus = async () => {
+    // Get health status from real server
+    const health = await emailAPI.getHealth();
+    // Update queue status based on server response
+    setQueueStatus(prev => ({
+      ...prev,
+      total: state.emails.length,
+      queued: state.emails.filter(e => e.status === 'queued').length,
+      sending: 0, // Real server handles this
+      delivered: state.emails.filter(e => e.status === 'delivered').length,
+      failed: state.emails.filter(e => e.status === 'failed').length,
+    }));
   };
 
-  const retryEmail = (id: string) => {
-    const success = mailer.retryEmail(id);
-    if (success) {
-      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Email retry queued', 'success')] }));
-      setTimeout(updateQueueStatus, 100);
+  const retryEmail = async (id: string) => {
+    // Find the email in state
+    const email = state.emails.find(e => e.id === id);
+    if (!email || email.status !== 'failed') return;
+    
+    // Re-send the email via API
+    const result = await emailAPI.send(
+      email.to,
+      email.subject,
+      '<p>Email retry</p>',
+      'Email retry',
+      'retry'
+    );
+    
+    if (result.success) {
+      setState(prev => ({
+        ...prev,
+        emails: prev.emails.map(e => e.id === id ? { ...e, status: 'delivered' as const } : e),
+        toasts: [...prev.toasts, addToast(prev, 'Email retry successful', 'success')],
+      }));
+    } else {
+      setState(prev => ({
+        ...prev,
+        toasts: [...prev.toasts, addToast(prev, `Email retry failed: ${result.error}`, 'error')],
+      }));
     }
   };
 
-  const sendTestEmail = () => {
+  const sendTestEmail = async () => {
     if (!testEmail) return;
-    sendTestEmailFn(testEmail, settings.orgName);
     
-    // Add to state
-    setState(prev => ({
-      ...prev,
-      emails: [...prev.emails, {
-        id: Date.now().toString(),
-        to: testEmail,
-        subject: 'Test Email from VolunteerHub',
-        status: 'queued' as const,
-        createdAt: new Date().toISOString(),
-      }],
-      toasts: [...prev.toasts, addToast(prev, 'Test email queued for delivery', 'success')],
-    }));
+    // Send test email via real API
+    const result = await emailAPI.sendTest(testEmail, settings.orgName);
     
-    setTestEmail('');
-    setTimeout(updateQueueStatus, 100);
+    if (result.success) {
+      // Add to state as delivered
+      setState(prev => ({
+        ...prev,
+        emails: [...prev.emails, {
+          id: result.messageId || Date.now().toString(),
+          to: testEmail,
+          subject: 'Test Email from VolunteerHub',
+          status: 'delivered' as const,
+          createdAt: result.sentAt || new Date().toISOString(),
+        }],
+        toasts: [...prev.toasts, addToast(prev, '✓ Test email sent successfully!', 'success')],
+      }));
+      setTestEmail('');
+    } else {
+      // Add to state as failed
+      setState(prev => ({
+        ...prev,
+        emails: [...prev.emails, {
+          id: Date.now().toString(),
+          to: testEmail,
+          subject: 'Test Email from VolunteerHub',
+          status: 'failed' as const,
+          createdAt: new Date().toISOString(),
+        }],
+        toasts: [...prev.toasts, addToast(prev, `✗ Test email failed: ${result.error}`, 'error')],
+      }));
+    }
   };
 
   // Update queue status periodically
   useEffect(() => {
     if (tab === 'email') {
       updateQueueStatus();
-      const interval = setInterval(updateQueueStatus, 2000);
+      const interval = setInterval(() => {
+        updateQueueStatus();
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [tab]);
