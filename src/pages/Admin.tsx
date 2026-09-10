@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Calendar, Users, BarChart3, Settings, Rocket, LogOut, Search, Plus, Edit, Trash2, Download, Filter, Clock, MapPin, DollarSign, Mail, Shield, Check, X, Eye, UserPlus, ChevronDown, ChevronUp, RefreshCw, Send, QrCode, AlertTriangle, TrendingUp, Award, Activity, Zap } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, BarChart3, Settings, Rocket, LogOut, Search, Plus, Edit, Trash2, Download, Filter, Clock, MapPin, DollarSign, Mail, Shield, Check, X, Eye, UserPlus, ChevronDown, ChevronUp, RefreshCw, Send, QrCode, AlertTriangle, TrendingUp, Award, Activity, Zap, AlertCircle } from 'lucide-react';
 import { useStore, addToast, addActivity, addEmail, getEventStatus, getEventRegistrations, getEventAttendees, getRevenue, getTotalHours, calculateHours } from '../store';
 import { Event, User, Attendance, Medal } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, CountUp, ProgressRing } from '../components/UI';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { mailer, sendTestEmail as sendTestEmailFn } from '../mailer';
 
 type AdminView = 'dashboard' | 'events' | 'members' | 'impact' | 'settings' | 'deploy';
 
@@ -882,10 +883,74 @@ function SettingsView() {
   const { state, setState } = useStore();
   const [tab, setTab] = useState<'branding' | 'waivers' | 'awards' | 'payments' | 'email' | 'org'>('branding');
   const [settings, setSettings] = useState({ ...state.settings });
+  const [relayHealth, setRelayHealth] = useState<'online' | 'offline' | 'unreachable'>('offline');
+  const [checkingHealth, setCheckingHealth] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [queueStatus, setQueueStatus] = useState({ total: 0, queued: 0, sending: 0, delivered: 0, failed: 0 });
 
   const handleSave = () => {
     setState(prev => ({ ...prev, settings, toasts: [...prev.toasts, addToast(prev, 'Settings saved!', 'success')] }));
   };
+
+  // Email management functions
+  const checkRelayHealth = async () => {
+    setCheckingHealth(true);
+    // Configure mailer with current settings
+    mailer.configure({
+      host: settings.smtpHost,
+      port: settings.smtpPort,
+      user: settings.smtpUser,
+      pass: settings.smtpPass,
+      from: settings.smtpFrom,
+      fromName: settings.orgName,
+      secure: settings.smtpPort === 465,
+    });
+    const health = await mailer.checkRelayHealth();
+    setRelayHealth(health);
+    setCheckingHealth(false);
+  };
+
+  const updateQueueStatus = () => {
+    setQueueStatus(mailer.getQueueStatus());
+  };
+
+  const retryEmail = (id: string) => {
+    const success = mailer.retryEmail(id);
+    if (success) {
+      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Email retry queued', 'success')] }));
+      setTimeout(updateQueueStatus, 100);
+    }
+  };
+
+  const sendTestEmail = () => {
+    if (!testEmail) return;
+    sendTestEmailFn(testEmail, settings.orgName);
+    
+    // Add to state
+    setState(prev => ({
+      ...prev,
+      emails: [...prev.emails, {
+        id: Date.now().toString(),
+        to: testEmail,
+        subject: 'Test Email from VolunteerHub',
+        status: 'queued' as const,
+        createdAt: new Date().toISOString(),
+      }],
+      toasts: [...prev.toasts, addToast(prev, 'Test email queued for delivery', 'success')],
+    }));
+    
+    setTestEmail('');
+    setTimeout(updateQueueStatus, 100);
+  };
+
+  // Update queue status periodically
+  useEffect(() => {
+    if (tab === 'email') {
+      updateQueueStatus();
+      const interval = setInterval(updateQueueStatus, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [tab]);
 
   const themeColors = ['#1a5c3a', '#2563eb', '#7c3aed', '#dc2626', '#ea580c', '#0891b2'];
   const presetLogos = ['🌿', '🤝', '🌍', '❤️', '🏠', '⭐'];
@@ -977,34 +1042,181 @@ function SettingsView() {
         )}
 
         {tab === 'email' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div className="space-y-6">
+            {/* SMTP Configuration */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">SMTP Configuration</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+                  <input 
+                    value={settings.smtpHost} 
+                    onChange={e => setSettings({ ...settings, smtpHost: e.target.value })} 
+                    placeholder="smtp.gmail.com"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
+                  <input 
+                    type="number" 
+                    value={settings.smtpPort} 
+                    onChange={e => setSettings({ ...settings, smtpPort: +e.target.value })} 
+                    placeholder="587"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <input 
+                    value={settings.smtpUser} 
+                    onChange={e => setSettings({ ...settings, smtpUser: e.target.value })} 
+                    placeholder="your-email@gmail.com"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input 
+                    type="password" 
+                    value={settings.smtpPass} 
+                    onChange={e => setSettings({ ...settings, smtpPass: e.target.value })} 
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" 
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">From Address</label>
+                <input 
+                  value={settings.smtpFrom} 
+                  onChange={e => setSettings({ ...settings, smtpFrom: e.target.value })} 
+                  placeholder="noreply@yourdomain.com"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" 
+                />
+              </div>
+            </div>
+
+            {/* Relay Health Status */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-medium text-gray-700">SMTP Relay Status: Online</span>
+                <div className={`w-3 h-3 rounded-full ${
+                  relayHealth === 'online' ? 'bg-green-500 animate-pulse' : 
+                  relayHealth === 'unreachable' ? 'bg-yellow-500' : 
+                  'bg-red-500'
+                }`} />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">
+                    SMTP Relay Status: {relayHealth.charAt(0).toUpperCase() + relayHealth.slice(1)}
+                  </span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {relayHealth === 'online' && 'Connection successful - ready to send emails'}
+                    {relayHealth === 'unreachable' && 'Cannot connect to SMTP server - check configuration'}
+                    {relayHealth === 'offline' && 'Not configured - emails will be queued locally'}
+                  </p>
+                </div>
               </div>
-              <button className="p-2 text-gray-400 hover:text-gray-600"><RefreshCw size={16} /></button>
+              <button 
+                onClick={checkRelayHealth}
+                disabled={checkingHealth}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={checkingHealth ? 'animate-spin' : ''} />
+                {checkingHealth ? 'Checking...' : 'Test Connection'}
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label><input value={settings.smtpHost} onChange={e => setSettings({ ...settings, smtpHost: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label><input type="number" value={settings.smtpPort} onChange={e => setSettings({ ...settings, smtpPort: +e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP User</label><input value={settings.smtpUser} onChange={e => setSettings({ ...settings, smtpUser: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Password</label><input type="password" value={settings.smtpPass} onChange={e => setSettings({ ...settings, smtpPass: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-            </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">From Address</label><input value={settings.smtpFrom} onChange={e => setSettings({ ...settings, smtpFrom: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
-            <button onClick={() => setState(prev => ({ ...prev, emails: [...prev.emails, addEmail(prev, 'test@example.com', 'Test Email')], toasts: [...prev.toasts, addToast(prev, 'Test email sent!', 'success')] }))} className="flex items-center gap-2 px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: state.settings.themeColor }}>
-              <Send size={14} /> Send Test Email
-            </button>
-            <div className="mt-4">
-              <h4 className="font-medium text-sm text-gray-700 mb-2">Recent Emails</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {state.emails.slice(-5).reverse().map(email => (
-                  <div key={email.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                    <span className="text-gray-700">{email.subject}</span>
-                    <Badge variant={email.status === 'delivered' ? 'success' : email.status === 'failed' ? 'danger' : 'info'}>{email.status}</Badge>
-                  </div>
-                ))}
+
+            {/* Email Outbox */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Email Outbox</h3>
+                <div className="flex gap-2 text-xs">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">Queued: {queueStatus.queued}</span>
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded">Sending: {queueStatus.sending}</span>
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Delivered: {queueStatus.delivered}</span>
+                  <span className="px-2 py-1 bg-red-100 text-red-700 rounded">Failed: {queueStatus.failed}</span>
+                </div>
               </div>
+              
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium text-gray-700">To</th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-700">Subject</th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-700">Status</th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-700">Time</th>
+                      <th className="text-right px-4 py-2 font-medium text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.emails.slice(-10).reverse().map(email => (
+                      <tr key={email.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{email.to}</td>
+                        <td className="px-4 py-3 text-gray-700 max-w-xs truncate">{email.subject}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+                            email.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                            email.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {email.status === 'delivered' && <Check size={12} />}
+                            {email.status === 'failed' && <AlertCircle size={12} />}
+                            {email.status === 'queued' && <Clock size={12} />}
+                            {email.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">
+                          {new Date(email.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {email.status === 'failed' && (
+                            <button 
+                              onClick={() => retryEmail(email.id)}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              Retry
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {state.emails.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                          No emails sent yet
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Test Email */}
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Test Email</h3>
+              <div className="flex gap-3">
+                <input 
+                  type="email"
+                  value={testEmail}
+                  onChange={e => setTestEmail(e.target.value)}
+                  placeholder="recipient@example.com"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+                <button 
+                  onClick={sendTestEmail}
+                  disabled={!testEmail}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: state.settings.themeColor }}
+                >
+                  <Send size={14} />
+                  Send Test Email
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Send a test email to verify your SMTP configuration is working correctly.
+              </p>
             </div>
           </div>
         )}

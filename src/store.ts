@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import { AppState, User, Event, Attendance, Registration, Payment, ActivityLog, EmailMessage, OrgSettings, Toast } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { mailer } from './mailer';
 
 const DEFAULT_MEDALS = [
   { id: '1', name: 'Bronze', icon: '🥉', hoursRequired: 10, color: '#cd7f32' },
@@ -157,8 +158,27 @@ export function addActivity(state: AppState, activity: Omit<ActivityLog, 'id' | 
   return { ...activity, id: uuidv4(), timestamp: new Date().toISOString() };
 }
 
-export function addEmail(state: AppState, to: string, subject: string): EmailMessage {
-  return { id: uuidv4(), to, subject, status: 'delivered', createdAt: new Date().toISOString() };
+export function addEmail(state: AppState, to: string, subject: string, html?: string, text?: string): EmailMessage {
+  // Configure mailer with current settings
+  mailer.configure({
+    host: state.settings.smtpHost,
+    port: state.settings.smtpPort,
+    user: state.settings.smtpUser,
+    pass: state.settings.smtpPass,
+    from: state.settings.smtpFrom,
+    fromName: state.settings.orgName,
+    secure: state.settings.smtpPort === 465,
+  });
+
+  // Queue the email for delivery
+  if (html && text) {
+    mailer.queueEmail(to, subject, html, text);
+  } else {
+    // Simple fallback
+    mailer.queueEmail(to, subject, `<p>${subject}</p>`, subject);
+  }
+
+  return { id: uuidv4(), to, subject, status: 'queued', createdAt: new Date().toISOString() };
 }
 
 export function addToast(state: AppState, message: string, type: Toast['type'] = 'info'): Toast {

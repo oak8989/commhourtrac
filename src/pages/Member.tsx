@@ -5,6 +5,7 @@ import { useStore, addToast, addActivity, getEventStatus, getEventRegistrations,
 import { Event } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, ProgressRing, CountUp } from '../components/UI';
+import { EmailTemplates, sendMedalEmail, mailer } from '../mailer';
 
 type MemberView = 'home' | 'events' | 'hours' | 'profile';
 
@@ -109,13 +110,47 @@ function HomeView({ user }: { user: any }) {
       if (!currentActive) return prev;
       const hours = calculateHours(currentActive.checkIn, new Date().toISOString());
       const currentUser = prev.currentUser || user;
+      const newTotalHours = currentUser.totalHours + hours;
+      
+      // Check for medal unlocks
+      const medalsEarned = prev.settings.medals.filter(m => 
+        newTotalHours >= m.hoursRequired && currentUser.totalHours < m.hoursRequired
+      );
+      
+      let newActivityLog = [{ id: uuidv4(), type: 'check-out' as const, userId: user.id, message: `${currentUser.name} checked out (${hours}h)`, timestamp: new Date().toISOString() }, ...prev.activityLog];
+      let newEmails = [...prev.emails];
+      let newToasts = [...prev.toasts, addToast(prev, `Checked out! ${hours} hours logged`, 'success')];
+      
+      // Send medal notifications
+      medalsEarned.forEach(medal => {
+        newActivityLog = [{ id: uuidv4(), type: 'medal' as const, userId: user.id, message: `${currentUser.name} earned the ${medal.name} medal! ${medal.icon}`, timestamp: new Date().toISOString() }, ...newActivityLog];
+        
+        // Send medal email
+        const medalTemplate = EmailTemplates.medal(prev.settings.orgName, medal.name, medal.icon, newTotalHours);
+        newEmails.push({ id: uuidv4(), to: currentUser.email, subject: medalTemplate.subject, status: 'queued' as const, createdAt: new Date().toISOString() });
+        
+        mailer.configure({
+          host: prev.settings.smtpHost,
+          port: prev.settings.smtpPort,
+          user: prev.settings.smtpUser,
+          pass: prev.settings.smtpPass,
+          from: prev.settings.smtpFrom,
+          fromName: prev.settings.orgName,
+          secure: prev.settings.smtpPort === 465,
+        });
+        mailer.queueEmail(currentUser.email, medalTemplate.subject, medalTemplate.html, medalTemplate.text, 'medal');
+        
+        newToasts = [...newToasts, addToast(prev, `🎉 Congratulations! You earned the ${medal.name} medal!`, 'success')];
+      });
+      
       return {
         ...prev,
         attendance: prev.attendance.map(a => a.id === currentActive.id ? { ...a, checkOut: new Date().toISOString(), hours, status: 'completed' as const } : a),
-        users: prev.users.map(u => u.id === user.id ? { ...u, totalHours: u.totalHours + hours } : u),
-        currentUser: prev.currentUser ? { ...prev.currentUser, totalHours: prev.currentUser.totalHours + hours } : null,
-        activityLog: [{ id: uuidv4(), type: 'check-out' as const, userId: user.id, message: `${currentUser.name} checked out (${hours}h)`, timestamp: new Date().toISOString() }, ...prev.activityLog],
-        toasts: [...prev.toasts, addToast(prev, `Checked out! ${hours} hours logged`, 'success')],
+        users: prev.users.map(u => u.id === user.id ? { ...u, totalHours: newTotalHours } : u),
+        currentUser: prev.currentUser ? { ...prev.currentUser, totalHours: newTotalHours } : null,
+        activityLog: newActivityLog,
+        emails: newEmails,
+        toasts: newToasts,
       };
     });
   };
@@ -271,7 +306,26 @@ function EventsView({ user }: { user: any }) {
       } : null;
 
       const activity = { id: uuidv4(), type: 'registration' as const, userId: user.id, eventId: event.id, message: `${currentUser.name} registered for ${event.title}`, timestamp: new Date().toISOString() };
-      const emailMsg = { id: uuidv4(), to: currentUser.email, subject: `Registration confirmed: ${event.title}`, status: 'delivered' as const, createdAt: new Date().toISOString() };
+      
+      // Send registration confirmation email using template
+      const eventDate = new Date(event.startDate).toLocaleString('en-US', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      });
+      const regTemplate = EmailTemplates.registration(prev.settings.orgName, event.title, eventDate, event.location);
+      const emailMsg = { id: uuidv4(), to: currentUser.email, subject: regTemplate.subject, status: 'queued' as const, createdAt: new Date().toISOString() };
+      
+      // Queue the email
+      mailer.configure({
+        host: prev.settings.smtpHost,
+        port: prev.settings.smtpPort,
+        user: prev.settings.smtpUser,
+        pass: prev.settings.smtpPass,
+        from: prev.settings.smtpFrom,
+        fromName: prev.settings.orgName,
+        secure: prev.settings.smtpPort === 465,
+      });
+      mailer.queueEmail(currentUser.email, regTemplate.subject, regTemplate.html, regTemplate.text, 'registration');
 
       return {
         ...prev,

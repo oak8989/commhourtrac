@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useStore, addToast, addActivity, addEmail } from '../store';
 import { v4 as uuidv4 } from 'uuid';
+import { sendWelcomeEmail, sendPasswordResetEmail, EmailTemplates } from '../mailer';
 
 export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' | 'reset' | 'first-run'; onNavigate: (page: string) => void }) {
   const { state, setState } = useStore();
@@ -38,7 +39,10 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
     };
 
     const activity = addActivity(state, { type: 'member-added', userId: newUser.id, message: `${name} registered as a new volunteer` });
-    const emailMsg = addEmail(state, email, 'Welcome to ' + state.settings.orgName);
+    
+    // Send welcome email using template
+    const welcomeTemplate = EmailTemplates.welcome(state.settings.orgName, name);
+    const emailMsg = addEmail(state, email, welcomeTemplate.subject, welcomeTemplate.html, welcomeTemplate.text);
 
     setState(prev => ({
       ...prev,
@@ -56,7 +60,12 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
     setError('');
     const user = state.users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!user) { setError('Email not found'); return; }
-    const emailMsg = addEmail(state, email, 'Password Reset Link');
+    
+    // Generate reset token and send templated email
+    const resetToken = Math.random().toString(36).substring(2, 15);
+    const resetTemplate = EmailTemplates.passwordReset(state.settings.orgName, resetToken);
+    const emailMsg = addEmail(state, email, resetTemplate.subject, resetTemplate.html, resetTemplate.text);
+    
     setState(prev => ({
       ...prev,
       emails: [...prev.emails, emailMsg],
