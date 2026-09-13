@@ -148,7 +148,7 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
       {/* Impact Band */}
       <section className="py-16" style={{ backgroundColor: settings.themeColor }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center text-white">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center text-white">
             <div>
               <div className="text-4xl lg:text-5xl font-bold"><CountUp end={totalHours} suffix="+" /></div>
               <p className="mt-2 text-white/80">Volunteer Hours</p>
@@ -160,10 +160,6 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
             <div>
               <div className="text-4xl lg:text-5xl font-bold"><CountUp end={totalEvents + state.events.length} /></div>
               <p className="mt-2 text-white/80">Events Held</p>
-            </div>
-            <div>
-              <div className="text-4xl lg:text-5xl font-bold"><CountUp end={Math.round(totalHours * settings.dollarPerHour)} prefix="$" /></div>
-              <p className="mt-2 text-white/80">Community Value</p>
             </div>
           </div>
         </div>
@@ -185,7 +181,6 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-3">
                       {status === 'live' && <Badge variant="success"><span className="flex items-center gap-1"><PulsingDot color="bg-green-500" /> Live</span></Badge>}
-                      {event.fee > 0 && <Badge variant="info">${event.fee}</Badge>}
                       {event.isRecurring && <Badge variant="warning">{event.recurrenceType}</Badge>}
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 mb-2">{event.title}</h3>

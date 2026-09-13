@@ -368,7 +368,6 @@ function EventsView({ user }: { user: any }) {
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-gray-900">{event.title}</h3>
                     {getEventStatus(event) === 'live' && <PulsingDot />}
-                    {event.fee > 0 && <Badge variant="info">${event.fee}</Badge>}
                   </div>
                   <p className="text-sm text-gray-600 mb-2">{event.description}</p>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500">
