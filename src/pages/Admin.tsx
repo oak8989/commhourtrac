@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Calendar, Users, BarChart3, Settings, Rocket, LogOut, Search, Plus, Edit, Trash2, Download, Filter, Clock, MapPin, DollarSign, Mail, Shield, Check, X, Eye, UserPlus, ChevronDown, ChevronUp, RefreshCw, Send, QrCode, AlertTriangle, TrendingUp, Award, Activity, Zap, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, BarChart3, Settings, Rocket, LogOut, Search, Plus, Edit, Trash2, Download, Filter, Clock, MapPin, DollarSign, Mail, Shield, Check, X, Eye, EyeOff, UserPlus, ChevronDown, ChevronUp, RefreshCw, Send, QrCode, AlertTriangle, TrendingUp, Award, Activity, Zap, AlertCircle, User as UserIcon } from 'lucide-react';
 import { useStore, addToast, addActivity, addEmail, getEventStatus, getEventRegistrations, getEventAttendees, getRevenue, getTotalHours, calculateHours } from '../store';
 import { Event, User, Attendance, Medal } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { mailer, sendTestEmail as sendTestEmailFn } from '../mailer';
 import { emailAPI } from '../emailAPI';
 
-type AdminView = 'dashboard' | 'events' | 'members' | 'impact' | 'settings' | 'deploy';
+type AdminView = 'dashboard' | 'events' | 'members' | 'impact' | 'settings' | 'deploy' | 'profile';
 
 export default function Admin({ onNavigate }: { onNavigate: (page: string) => void }) {
   const { state, setState } = useStore();
@@ -34,6 +34,7 @@ export default function Admin({ onNavigate }: { onNavigate: (page: string) => vo
     { id: 'impact' as const, icon: BarChart3, label: 'Impact' },
     { id: 'settings' as const, icon: Settings, label: 'Settings' },
     { id: 'deploy' as const, icon: Rocket, label: 'Deploy' },
+    { id: 'profile' as const, icon: UserIcon, label: 'My Profile' },
   ];
 
   return (
@@ -73,6 +74,7 @@ export default function Admin({ onNavigate }: { onNavigate: (page: string) => vo
           {view === 'impact' && <ImpactView />}
           {view === 'settings' && <SettingsView />}
           {view === 'deploy' && <DeployView />}
+          {view === 'profile' && <ProfileView />}
         </div>
       </main>
     </div>
@@ -166,6 +168,147 @@ function DashboardView() {
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Profile View
+function ProfileView() {
+  const { state, setState } = useStore();
+  const currentUser = state.currentUser!;
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
+
+  const handleChangePassword = () => {
+    if (passwordForm.newPass !== passwordForm.confirm) {
+      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Passwords do not match', 'error')] }));
+      return;
+    }
+    if (passwordForm.newPass.length < 6) {
+      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Password must be at least 6 characters', 'error')] }));
+      return;
+    }
+    if (passwordForm.current !== currentUser.password) {
+      setState(prev => ({ ...prev, toasts: [...prev.toasts, addToast(prev, 'Current password is incorrect', 'error')] }));
+      return;
+    }
+    
+    setState(prev => ({
+      ...prev,
+      users: prev.users.map(u => u.id === currentUser.id ? { ...u, password: passwordForm.newPass } : u),
+      currentUser: prev.currentUser ? { ...prev.currentUser, password: passwordForm.newPass } : null,
+      toasts: [...prev.toasts, addToast(prev, 'Password changed successfully!', 'success')],
+    }));
+    setPasswordForm({ current: '', newPass: '', confirm: '' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+
+      {/* Profile Information */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h2 className="font-semibold text-gray-900 mb-4">Account Information</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-900">{currentUser.name}</div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-900">{currentUser.email}</div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-900 capitalize">{currentUser.role}</div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+            <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-900">
+              {new Date(currentUser.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h2 className="font-semibold text-gray-900 mb-4">Change Password</h2>
+        <div className="space-y-4 max-w-md">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <div className="relative">
+              <input 
+                type={showPassword ? 'text' : 'password'}
+                value={passwordForm.current}
+                onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm"
+                placeholder="Enter current password"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <input 
+              type={showPassword ? 'text' : 'password'}
+              value={passwordForm.newPass}
+              onChange={e => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              placeholder="Enter new password (min 6 characters)"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <input 
+              type={showPassword ? 'text' : 'password'}
+              value={passwordForm.confirm}
+              onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              placeholder="Confirm new password"
+            />
+          </div>
+          <button 
+            onClick={handleChangePassword}
+            className="px-4 py-2 text-white rounded-lg text-sm font-medium"
+            style={{ backgroundColor: state.settings.themeColor }}
+          >
+            Update Password
+          </button>
+        </div>
+      </div>
+
+      {/* Security Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+          <Shield size={18} />
+          Security Tips
+        </h3>
+        <ul className="space-y-2 text-sm text-blue-800">
+          <li className="flex items-start gap-2">
+            <Check size={16} className="mt-0.5 flex-shrink-0" />
+            <span>Use a strong password with at least 8 characters</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Check size={16} className="mt-0.5 flex-shrink-0" />
+            <span>Include numbers, symbols, and mixed case letters</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Check size={16} className="mt-0.5 flex-shrink-0" />
+            <span>Don't reuse passwords from other accounts</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Check size={16} className="mt-0.5 flex-shrink-0" />
+            <span>Change your password regularly</span>
+          </li>
+        </ul>
       </div>
     </div>
   );

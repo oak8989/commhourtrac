@@ -43,6 +43,7 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
               <span className="text-xl font-bold text-gray-900">{settings.orgName}</span>
             </div>
             <div className="flex items-center gap-4">
+              <button onClick={() => onNavigate('reset')} className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">Forgot Password?</button>
               <button onClick={() => onNavigate('login')} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">Sign In</button>
               <button onClick={() => onNavigate('register')} className="px-4 py-2 text-sm font-medium text-white rounded-lg" style={{ backgroundColor: settings.themeColor }}>Get Started</button>
             </div>
@@ -65,6 +66,11 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
               </button>
               <button onClick={() => onNavigate('login')} className="px-8 py-4 text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all">
                 Member Sign In
+              </button>
+            </div>
+            <div className="mt-6 text-center">
+              <button onClick={() => onNavigate('reset')} className="text-sm text-gray-500 hover:text-gray-700 underline">
+                Forgot your password? Reset it here
               </button>
             </div>
           </motion.div>
@@ -254,6 +260,7 @@ export default function Landing({ onNavigate }: { onNavigate: (page: string) => 
             <div>
               <h4 className="font-semibold mb-3">Links</h4>
               <div className="space-y-2 text-sm text-gray-400">
+                <button onClick={() => onNavigate('reset')} className="block hover:text-white text-left">Reset Password</button>
                 <a href="#" className="block hover:text-white">Privacy Policy</a>
                 <a href="#" className="block hover:text-white">Terms of Service</a>
                 <a href="https://github.com" target="_blank" rel="noopener" className="flex items-center gap-2 hover:text-white">
