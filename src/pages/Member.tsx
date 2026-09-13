@@ -122,6 +122,20 @@ function HomeView({ user }: { user: any }) {
       let newEmails = [...prev.emails];
       let newToasts = [...prev.toasts, addToast(prev, `Checked out! ${hours} hours logged`, 'success')];
       
+      // Configure email API once before sending medal notifications
+      if (medalsEarned.length > 0) {
+        emailAPI.configure({
+          host: prev.settings.smtpHost,
+          port: prev.settings.smtpPort,
+          user: prev.settings.smtpUser,
+          pass: prev.settings.smtpPass,
+          from: prev.settings.smtpFrom,
+          fromName: prev.settings.orgName,
+        }).catch(error => {
+          console.error('Failed to configure email API:', error);
+        });
+      }
+      
       // Send medal notifications
       medalsEarned.forEach(medal => {
         newActivityLog = [{ id: uuidv4(), type: 'medal' as const, userId: user.id, message: `${currentUser.name} earned the ${medal.name} medal! ${medal.icon}`, timestamp: new Date().toISOString() }, ...newActivityLog];
@@ -131,16 +145,11 @@ function HomeView({ user }: { user: any }) {
         newEmails.push({ id: uuidv4(), to: currentUser.email, subject: medalTemplate.subject, status: 'queued' as const, createdAt: new Date().toISOString() });
         
         // Send asynchronously
-        emailAPI.configure({
-          host: prev.settings.smtpHost,
-          port: prev.settings.smtpPort,
-          user: prev.settings.smtpUser,
-          pass: prev.settings.smtpPass,
-          from: prev.settings.smtpFrom,
-          fromName: prev.settings.orgName,
-        }).then(() => {
-          emailAPI.send(currentUser.email, medalTemplate.subject, medalTemplate.html, medalTemplate.text, 'medal');
-        });
+        emailAPI.send(currentUser.email, medalTemplate.subject, medalTemplate.html, medalTemplate.text, 'medal')
+          .catch(error => {
+            console.error('Failed to send medal email:', error);
+            // Don't show error to user - medal was earned even if email failed
+          });
         
         newToasts = [...newToasts, addToast(prev, `🎉 Congratulations! You earned the ${medal.name} medal!`, 'success')];
       });
@@ -170,7 +179,7 @@ function HomeView({ user }: { user: any }) {
             <p className="text-sm text-gray-500 mb-2">You're currently checked in</p>
             <div className="flex items-center gap-4">
               <div className="text-2xl font-mono font-bold text-green-600">
-                <LiveTimerDisplay checkIn={activeCheckin.checkIn!} />
+                {activeCheckin.checkIn && <LiveTimerDisplay checkIn={activeCheckin.checkIn} />}
               </div>
               <button onClick={handleCheckOut} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">Check Out</button>
             </div>

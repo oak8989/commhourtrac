@@ -4,15 +4,20 @@ import { StoreContext, loadState, saveState } from './store';
 import { ToastContainer, FilmGrain } from './components/UI';
 import Landing from './pages/Landing';
 import Auth from './pages/Auth';
+import ResetPassword from './pages/ResetPassword';
 import Admin from './pages/Admin';
 import MemberPortal from './pages/Member';
 
-type Page = 'landing' | 'login' | 'register' | 'reset' | 'first-run' | 'admin' | 'member';
+type Page = 'landing' | 'login' | 'register' | 'reset' | 'reset-password' | 'first-run' | 'admin' | 'member';
 
 export default function App() {
   const [initialState] = useState<AppState>(() => loadState());
   const [state, setStateRaw] = useState<AppState>(initialState);
   const [page, setPage] = useState<Page>(() => {
+    // Check if we're on a password reset URL
+    const path = window.location.pathname;
+    if (path === '/reset-password') return 'reset-password';
+    
     if (initialState.currentUser) return initialState.currentUser.role === 'admin' ? 'admin' : 'member';
     return 'landing';
   });
@@ -36,6 +41,13 @@ export default function App() {
   // Update CSS variables when theme color changes
   useEffect(() => {
     const themeColor = state.settings.themeColor;
+    
+    // Validate hex color before processing
+    if (!/^#[0-9A-Fa-f]{6}$/.test(themeColor)) {
+      console.warn('Invalid theme color:', themeColor);
+      return;
+    }
+    
     document.documentElement.style.setProperty('--theme-color', themeColor);
     
     // Generate lighter and darker variants
@@ -73,6 +85,7 @@ export default function App() {
         {page === 'login' && <Auth mode="login" onNavigate={handleNavigate} />}
         {page === 'register' && <Auth mode="register" onNavigate={handleNavigate} />}
         {page === 'reset' && <Auth mode="reset" onNavigate={handleNavigate} />}
+        {page === 'reset-password' && <ResetPassword onNavigate={handleNavigate} />}
         {page === 'first-run' && <Auth mode="first-run" onNavigate={handleNavigate} />}
         {page === 'admin' && <Admin onNavigate={handleNavigate} />}
         {page === 'member' && <MemberPortal onNavigate={handleNavigate} />}

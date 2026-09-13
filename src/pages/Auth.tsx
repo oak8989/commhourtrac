@@ -55,7 +55,10 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
       from: state.settings.smtpFrom,
       fromName: state.settings.orgName,
     }).then(() => {
-      emailAPI.send(email, welcomeTemplate.subject, welcomeTemplate.html, welcomeTemplate.text, 'welcome');
+      return emailAPI.send(email, welcomeTemplate.subject, welcomeTemplate.html, welcomeTemplate.text, 'welcome');
+    }).catch(error => {
+      console.error('Failed to send welcome email:', error);
+      // Don't show error to user - registration succeeded even if email failed
     });
 
     setState(prev => ({
@@ -75,9 +78,11 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
     const user = state.users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (!user) { setError('Email not found'); return; }
     
-    // Generate reset token and send templated email via real API
-    const resetToken = Math.random().toString(36).substring(2, 15);
-    const resetUrl = `${window.location.origin}/reset-password?token=${resetToken}`;
+    // Generate secure reset token using crypto API
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    const resetToken = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    const resetUrl = `${window.location.origin}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
     const resetTemplate = EmailTemplates.passwordReset(state.settings.orgName, resetToken, resetUrl);
     const emailMsg = addEmail(state, email, resetTemplate.subject, resetTemplate.html, resetTemplate.text);
     
@@ -90,7 +95,13 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
       from: state.settings.smtpFrom,
       fromName: state.settings.orgName,
     }).then(() => {
-      emailAPI.send(email, resetTemplate.subject, resetTemplate.html, resetTemplate.text, 'passwordReset');
+      return emailAPI.send(email, resetTemplate.subject, resetTemplate.html, resetTemplate.text, 'passwordReset');
+    }).catch(error => {
+      console.error('Failed to send password reset email:', error);
+      setState(prev => ({
+        ...prev,
+        toasts: [...prev.toasts, addToast(prev, 'Failed to send reset email. Please try again.', 'error')],
+      }));
     });
     
     setState(prev => ({

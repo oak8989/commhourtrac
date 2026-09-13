@@ -71,7 +71,7 @@ export const EmailTemplates = {
         <h1 style="color: #1a5c3a;">Password Reset</h1>
         <p>We received a request to reset your password for your ${orgName} account.</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="#" style="background: #1a5c3a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          <a href="${resetUrl || '#'}" style="background: #1a5c3a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
             Reset Password
           </a>
         </div>
