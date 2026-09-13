@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+:root {
+  --theme-color: #1a5c3a;
+  --theme-color-light: #2d7a4f;
+  --theme-color-dark: #0f3d26;
+}
+
 @layer base {
   * {
     -webkit-font-smoothing: antialiased;

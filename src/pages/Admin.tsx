@@ -4,7 +4,7 @@ import { LayoutDashboard, Calendar, Users, BarChart3, Settings, Rocket, LogOut, 
 import { useStore, addToast, addActivity, addEmail, getEventStatus, getEventRegistrations, getEventAttendees, getRevenue, getTotalHours, calculateHours } from '../store';
 import { Event, User, Attendance, Medal } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, CountUp, ProgressRing } from '../components/UI';
+import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, CountUp, ProgressRing, Logo } from '../components/UI';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { mailer, sendTestEmail as sendTestEmailFn } from '../mailer';
 import { emailAPI } from '../emailAPI';
@@ -42,7 +42,7 @@ export default function Admin({ onNavigate }: { onNavigate: (page: string) => vo
       {/* Sidebar */}
       <motion.aside initial={false} animate={{ width: sidebarOpen ? 260 : 72 }} className="bg-[#1a2e1a] text-white flex flex-col overflow-hidden">
         <div className="p-4 flex items-center gap-3 border-b border-white/10">
-          <span className="text-2xl flex-shrink-0">{state.settings.logo}</span>
+          <Logo logo={state.settings.logo} size="md" className="flex-shrink-0" />
           {sidebarOpen && <span className="font-bold text-sm truncate">{state.settings.orgName}</span>}
         </div>
         <nav className="flex-1 p-3 space-y-1">
@@ -1176,18 +1176,112 @@ function SettingsView() {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Mission Statement</label><textarea value={settings.mission} onChange={e => setSettings({ ...settings, mission: e.target.value })} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" /></div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
-              <div className="flex gap-3">
-                {presetLogos.map(logo => (
-                  <button key={logo} onClick={() => setSettings({ ...settings, logo })} className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl ${settings.logo === logo ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>{logo}</button>
-                ))}
+              <div className="space-y-3">
+                {/* Preset Logos */}
+                <div className="flex gap-3 flex-wrap">
+                  {presetLogos.map(logo => (
+                    <button key={logo} onClick={() => setSettings({ ...settings, logo })} className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl transition-all ${settings.logo === logo ? 'border-green-500 bg-green-50 scale-110' : 'border-gray-200 hover:border-gray-300'}`}>{logo}</button>
+                  ))}
+                </div>
+                
+                {/* Logo Upload */}
+                <div className="border-t pt-3">
+                  <label className="block text-xs text-gray-500 mb-2">Or upload custom logo</label>
+                  <div className="flex gap-3 items-start">
+                    <label className="flex-1 cursor-pointer">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setSettings({ ...settings, logo: reader.result as string });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <div className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 text-center">
+                        Choose File
+                      </div>
+                    </label>
+                    {settings.logo && settings.logo.startsWith('data:image') && (
+                      <button 
+                        onClick={() => setSettings({ ...settings, logo: '🌿' })}
+                        className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {settings.logo && settings.logo.startsWith('data:image') && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-2">Preview:</p>
+                      <img src={settings.logo} alt="Logo" className="h-16 w-auto object-contain" />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Theme Accent</label>
-              <div className="flex gap-3">
-                {themeColors.map(color => (
-                  <button key={color} onClick={() => setSettings({ ...settings, themeColor: color })} className={`w-10 h-10 rounded-full border-2 ${settings.themeColor === color ? 'border-gray-900 scale-110' : 'border-transparent'}`} style={{ backgroundColor: color }} />
-                ))}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Theme Color</label>
+              <div className="space-y-3">
+                {/* Preset Colors */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-2">Preset Colors</label>
+                  <div className="flex gap-3 flex-wrap">
+                    {themeColors.map(color => (
+                      <button 
+                        key={color} 
+                        onClick={() => setSettings({ ...settings, themeColor: color })} 
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${settings.themeColor === color ? 'border-gray-900 scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`} 
+                        style={{ backgroundColor: color }} 
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Custom Color Picker */}
+                <div className="border-t pt-3">
+                  <label className="block text-xs text-gray-500 mb-2">Or choose custom color</label>
+                  <div className="flex gap-3 items-center">
+                    <input 
+                      type="color" 
+                      value={settings.themeColor} 
+                      onChange={(e) => setSettings({ ...settings, themeColor: e.target.value })}
+                      className="w-12 h-12 rounded-lg cursor-pointer border border-gray-300"
+                    />
+                    <input 
+                      type="text" 
+                      value={settings.themeColor} 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(value)) {
+                          setSettings({ ...settings, themeColor: value });
+                        }
+                      }}
+                      placeholder="#1a5c3a"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono"
+                    />
+                  </div>
+                </div>
+                
+                {/* Color Preview */}
+                <div className="border-t pt-3">
+                  <label className="block text-xs text-gray-500 mb-2">Preview</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 h-12 rounded-lg flex items-center justify-center text-white font-medium" style={{ backgroundColor: settings.themeColor }}>
+                      Primary Button
+                    </div>
+                    <div className="flex-1 h-12 rounded-lg border-2 flex items-center justify-center font-medium" style={{ borderColor: settings.themeColor, color: settings.themeColor }}>
+                      Secondary Button
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

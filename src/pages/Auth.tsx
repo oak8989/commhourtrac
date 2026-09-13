@@ -5,6 +5,7 @@ import { useStore, addToast, addActivity, addEmail } from '../store';
 import { v4 as uuidv4 } from 'uuid';
 import { sendWelcomeEmail, sendPasswordResetEmail, EmailTemplates } from '../mailer';
 import { emailAPI } from '../emailAPI';
+import { Logo } from '../components/UI';
 
 export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' | 'reset' | 'first-run'; onNavigate: (page: string) => void }) {
   const { state, setState } = useStore();
@@ -108,7 +109,7 @@ export default function Auth({ mode, onNavigate }: { mode: 'login' | 'register' 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <span className="text-4xl">{state.settings.logo}</span>
+            <Logo logo={state.settings.logo} size="xl" className="inline-block" />
             <h1 className="text-2xl font-bold text-gray-900 mt-4">
               {mode === 'login' && 'Welcome Back'}
               {mode === 'register' && 'Join Our Community'}

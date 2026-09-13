@@ -4,7 +4,7 @@ import { Home, Calendar, Clock, User, LogOut, CheckCircle, MapPin, QrCode, FileT
 import { useStore, addToast, addActivity, getEventStatus, getEventRegistrations, calculateHours } from '../store';
 import { Event } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, ProgressRing, CountUp } from '../components/UI';
+import { Modal, ConfirmDialog, Badge, CapacityBar, PulsingDot, ProgressRing, CountUp, Logo } from '../components/UI';
 import { EmailTemplates, sendMedalEmail, mailer } from '../mailer';
 import { emailAPI } from '../emailAPI';
 
@@ -39,7 +39,7 @@ export default function MemberPortal({ onNavigate }: { onNavigate: (page: string
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
-              <span className="text-xl">{state.settings.logo}</span>
+              <Logo logo={state.settings.logo} size="md" />
               <span className="font-bold text-sm text-gray-900 hidden sm:block">{state.settings.orgName}</span>
             </div>
             <div className="flex items-center gap-2">

@@ -181,3 +181,38 @@ export function FilmGrain() {
     }} />
   );
 }
+
+// Logo Component - handles both emoji and image logos
+export function Logo({ logo, size = 'md', className = '' }: { logo: string; size?: 'sm' | 'md' | 'lg' | 'xl'; className?: string }) {
+  const sizeClasses = {
+    sm: 'text-lg',
+    md: 'text-2xl',
+    lg: 'text-3xl',
+    xl: 'text-4xl'
+  };
+  
+  const imgSizeClasses = {
+    sm: 'h-6 w-6',
+    md: 'h-8 w-8',
+    lg: 'h-10 w-10',
+    xl: 'h-12 w-12'
+  };
+  
+  // Check if logo is an image (base64 or URL)
+  if (logo.startsWith('data:image') || logo.startsWith('http')) {
+    return (
+      <img 
+        src={logo} 
+        alt="Logo" 
+        className={`${imgSizeClasses[size]} object-contain ${className}`}
+      />
+    );
+  }
+  
+  // Otherwise, treat as emoji
+  return (
+    <span className={`${sizeClasses[size]} ${className}`}>
+      {logo}
+    </span>
+  );
+}
