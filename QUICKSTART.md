@@ -13,8 +13,8 @@ Get up and running in **5 minutes**!
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 ```
 
 ### 2. Run Setup Script

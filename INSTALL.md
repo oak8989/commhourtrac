@@ -108,8 +108,8 @@ choco install docker-desktop
 #### Step 2: Clone Repository
 
 ```bash
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 ```
 
 #### Step 3: Run Setup Script
@@ -162,8 +162,8 @@ docker-compose --version
 #### Step 2: Clone Repository
 
 ```bash
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 ```
 
 #### Step 3: Configure Environment
@@ -252,8 +252,8 @@ redis-cli ping
 #### Step 3: Clone Repository
 
 ```bash
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 ```
 
 #### Step 4: Install Dependencies
