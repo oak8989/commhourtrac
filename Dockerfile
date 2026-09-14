@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install ALL dependencies (including devDependencies for building)
+RUN npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -32,8 +32,13 @@ COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/server ./server
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
-# Install production dependencies only
+# Install production dependencies for frontend
 RUN npm ci --only=production && npm cache clean --force
+
+# Install server dependencies
+WORKDIR /app/server
+RUN npm ci --only=production && npm cache clean --force
+WORKDIR /app
 
 # Set environment
 ENV NODE_ENV=production
