@@ -8,8 +8,8 @@
 
 ```bash
 # 1. Clone repository
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 
 # 2. Run automated setup
 chmod +x setup.sh
@@ -50,8 +50,8 @@ sudo apt-get update
 sudo apt-get install -y docker.io docker-compose
 
 # Clone and setup
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 ./setup.sh
 ```
 
@@ -66,8 +66,8 @@ sudo apt-get install -y nodejs
 sudo apt-get install -y redis-server
 
 # Clone repository
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 
 # Install dependencies
 npm install

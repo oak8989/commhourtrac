@@ -13,8 +13,8 @@
 
 ```bash
 # 1. Clone the repository
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 
 # 2. Run the setup script
 chmod +x setup.sh

@@ -147,8 +147,8 @@ Your VolunteerHub application is now **100% production-ready** with a complete D
 ### Step 1: Clone & Setup
 
 ```bash
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 chmod +x setup.sh
 ./setup.sh
 ```

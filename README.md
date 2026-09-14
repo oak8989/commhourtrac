@@ -65,8 +65,8 @@ A production-ready, white-labeled volunteer management system with real email no
 
 ```bash
 # Clone repository
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 
 # Run setup
 chmod +x setup.sh
@@ -396,8 +396,8 @@ make test       # Test email
 
 ```bash
 # 1. Clone repository
-git clone <your-repo-url>
-cd volunteerhub
+git clone https://github.com/oak8989/commhourtrac.git
+cd commhourtrac
 
 # 2. Run setup
 chmod +x setup.sh
