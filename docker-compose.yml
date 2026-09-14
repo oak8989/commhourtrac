@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: volunteerhub-app
+    container_name: commhourtrac-app
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -18,7 +18,7 @@ services:
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
-      - SMTP_FROM=${SMTP_FROM:-noreply@volunteerhub.org}
+      - SMTP_FROM=${SMTP_FROM:-noreply@commhourtrac.org}
       - SMTP_SECURE=${SMTP_SECURE:-false}
       # Rate Limiting
       - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
@@ -31,7 +31,7 @@ services:
       # Persist uploads (if needed)
       - app-uploads:/app/uploads
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     depends_on:
       redis:
         condition: service_healthy
@@ -58,15 +58,15 @@ services:
   # Redis for caching and sessions
   redis:
     image: redis:7-alpine
-    container_name: volunteerhub-redis
+    container_name: commhourtrac-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-volunteerhub_redis_password}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-commhourtrac_redis_password}
     volumes:
       - redis-data:/data
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-volunteerhub_redis_password}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-commhourtrac_redis_password}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,7 +79,7 @@ services:
   # Nginx reverse proxy (optional, for production with SSL)
   nginx:
     image: nginx:alpine
-    container_name: volunteerhub-nginx
+    container_name: commhourtrac-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -91,27 +91,27 @@ services:
     depends_on:
       - app
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     profiles:
       - production
 
   # MailHog for email testing (development only)
   mailhog:
     image: mailhog/mailhog:latest
-    container_name: volunteerhub-mailhog
+    container_name: commhourtrac-mailhog
     restart: unless-stopped
     ports:
       - "1025:1025"  # SMTP server
       - "8025:8025"  # Web UI
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     profiles:
       - development
 
   # Postal for production email server (self-hosted)
   postal:
     image: postal/postal:latest
-    container_name: volunteerhub-postal
+    container_name: commhourtrac-postal
     restart: unless-stopped
     environment:
       - POSTAL_DB_HOST=postal-db
@@ -121,11 +121,11 @@ services:
       - POSTAL_RABBITMQ_HOST=postal-rabbitmq
       - POSTAL_RABBITMQ_USERNAME=postal
       - POSTAL_RABBITMQ_PASSWORD=${POSTAL_RABBITMQ_PASSWORD:-postal_rabbitmq_password}
-      - POSTAL_SMTP_SERVER_HOSTNAME=${POSTAL_SMTP_HOSTNAME:-mail.volunteerhub.org}
+      - POSTAL_SMTP_SERVER_HOSTNAME=${POSTAL_SMTP_HOSTNAME:-mail.commhourtrac.org}
     volumes:
       - postal-data:/opt/postal/data
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     depends_on:
       - postal-db
       - postal-rabbitmq
@@ -134,7 +134,7 @@ services:
 
   postal-db:
     image: mariadb:10.6
-    container_name: volunteerhub-postal-db
+    container_name: commhourtrac-postal-db
     restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=${POSTAL_DB_ROOT_PASSWORD:-root_password}
@@ -144,13 +144,13 @@ services:
     volumes:
       - postal-db-data:/var/lib/mysql
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     profiles:
       - postal
 
   postal-rabbitmq:
     image: rabbitmq:3-alpine
-    container_name: volunteerhub-postal-rabbitmq
+    container_name: commhourtrac-postal-rabbitmq
     restart: unless-stopped
     environment:
       - RABBITMQ_DEFAULT_USER=postal
@@ -158,12 +158,12 @@ services:
     volumes:
       - postal-rabbitmq-data:/var/lib/rabbitmq
     networks:
-      - volunteerhub-network
+      - commhourtrac-network
     profiles:
       - postal
 
 networks:
-  volunteerhub-network:
+  commhourtrac-network:
     driver: bridge
 
 volumes:
