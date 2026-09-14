@@ -8,6 +8,18 @@ A production-ready, white-labeled volunteer management system with real email no
 ![Docker](https://img.shields.io/badge/docker-ready-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+---
+
+## 📚 Documentation
+
+**👉 [Start Here - Complete Documentation Index](INDEX.md)**
+
+### Quick Links
+- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
+- **[INSTALL.md](INSTALL.md)** - Complete installation guide
+- **[SETUP.md](SETUP.md)** - Full setup and configuration
+- **[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)** - Production deployment
+
 ## ✨ Features
 
 ### 🎯 Core Functionality
@@ -318,11 +330,54 @@ MIT License - see LICENSE file for details
 - UI components from Lucide Icons
 - Styled with Tailwind CSS
 
+## 📚 Complete Documentation
+
+### 🚀 Getting Started
+- **[INDEX.md](INDEX.md)** - Complete documentation index
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute quick start
+- **[INSTALL.md](INSTALL.md)** - All installation methods
+- **[SETUP.md](SETUP.md)** - Complete setup guide
+
+### 🏗️ Installation & Deployment
+- **[INSTALL.md](INSTALL.md)** - Installation methods (Docker, manual, dev)
+- **[SETUP.md](SETUP.md)** - Configuration and first-time setup
+- **[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)** - Production deployment
+- **[DOCKER_SETUP_COMPLETE.md](DOCKER_SETUP_COMPLETE.md)** - Docker details
+
+### 📧 Email System
+- **[EMAIL_SERVER.md](EMAIL_SERVER.md)** - Email architecture and API
+- **[server/README.md](server/README.md)** - Email server documentation
+
+### 🎨 Customization
+- **[COLOR_AND_LOGO_CUSTOMIZATION.md](COLOR_AND_LOGO_CUSTOMIZATION.md)** - Branding and theming
+- **[PASSWORD_MANAGEMENT.md](PASSWORD_MANAGEMENT.md)** - Password features
+
+### 🔧 Technical
+- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical implementation
+- **[server/README.md](server/README.md)** - API documentation
+
+### 🐛 Troubleshooting
+- **[BUG_REPORT.md](BUG_REPORT.md)** - Known issues
+- **[BUG_FIXES_APPLIED.md](BUG_FIXES_APPLIED.md)** - Applied fixes
+
 ## 📞 Support
 
-- **Documentation**: [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)
-- **Quick Start**: [QUICKSTART.md](QUICKSTART.md)
-- **Issues**: Check logs with `make logs`
+### Documentation
+- **[INDEX.md](INDEX.md)** - Start here for all docs
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start guide
+- **[INSTALL.md](INSTALL.md)** - Installation help
+- **[SETUP.md](SETUP.md)** - Setup assistance
+- **[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)** - Production support
+
+### Quick Commands
+```bash
+make help       # Show all commands
+make setup      # Run setup
+make start      # Start services
+make logs       # View logs
+make health     # Check health
+make test       # Test email
+```
 
 ## 🌟 Features Roadmap
 
@@ -337,6 +392,29 @@ MIT License - see LICENSE file for details
 
 ---
 
+## 🎯 Quick Start
+
+```bash
+# 1. Clone repository
+git clone <your-repo-url>
+cd volunteerhub
+
+# 2. Run setup
+chmod +x setup.sh
+./setup.sh
+
+# 3. Access application
+# Open http://localhost:3001
+```
+
+**Default Login:**
+- Email: `admin@volunteerhub.org`
+- Password: `admin123`
+
+⚠️ **Change password immediately!**
+
+---
+
 **Made with ❤️ for volunteer organizations worldwide**
 
-[Get Started](QUICKSTART.md) | [Production Setup](PRODUCTION_SETUP.md) | [Documentation](PRODUCTION_SETUP.md)
+[📚 Documentation Index](INDEX.md) | [🚀 Quick Start](QUICKSTART.md) | [🔧 Installation](INSTALL.md) | [⚙️ Setup](SETUP.md) | [🏭 Production](PRODUCTION_SETUP.md)
