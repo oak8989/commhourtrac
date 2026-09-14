@@ -35,9 +35,9 @@ COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 # Install production dependencies for frontend
 RUN npm ci --only=production && npm cache clean --force
 
-# Install server dependencies
+# Install server dependencies (using npm install since server has no package-lock.json)
 WORKDIR /app/server
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 WORKDIR /app
 
 # Set environment
